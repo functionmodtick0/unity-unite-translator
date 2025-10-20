@@ -28,10 +28,10 @@ for path in files:
             continue
         jp = p.group(1)  # 원문
         # YAML 내부 \n 이스케이프는 그대로 둔다
-        rows.append([path, jp])
+        rows.append([path, jp, jp])
 
 with io.open("rpgm_texts.csv", "w", encoding="utf-8", newline="") as out:
     w = csv.writer(out)
-    w.writerow(["file", "source"])
+    w.writerow(["file", "source", "translated"])
     w.writerows(rows)
 print(f"extracted {len(rows)} lines")
