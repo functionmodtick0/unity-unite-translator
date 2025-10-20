@@ -34,6 +34,6 @@ for path in files:
 
 with io.open("rpgm_texts.csv", "w", encoding="utf-8", newline="") as out:
     w = csv.writer(out)
-    w.writerow(["file", "source", "translated"])
+    w.writerow(["file", "source", "target"])
     w.writerows(rows)
 print(f"extracted {len(rows)} lines")
