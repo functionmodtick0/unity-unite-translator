@@ -1,6 +1,12 @@
 # extract_rpgmaker_texts.py
-import csv, glob, io, os, re
-from .translator import translate_batch
+import csv, glob, io, os, re, sys
+
+# 상대 임포트와 절대 임포트 모두 지원
+try:
+    from .translator import translate_batch
+except ImportError:
+    # 직접 실행 시
+    from translator import translate_batch
 
 PROJECT_ROOT = "projects"
 PROJECT_NAME = input("프로젝트 이름을 입력하세요: ").strip()

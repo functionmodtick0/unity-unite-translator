@@ -1,17 +1,19 @@
 # apply_rpgmaker_texts.py
-import csv, io, re
+import csv, io, os, sys
 
-CSV_PATH = "rpgm_texts.csv"
+# 프로젝트 루트 설정
+PROJECT_ROOT = "projects"
+PROJECT_NAME = input("프로젝트 이름을 입력하세요: ").strip()
+CSV_PATH = os.path.join(PROJECT_ROOT, PROJECT_NAME, "rpgm_texts.csv")
 
 # CSV: file,source,target
 replacements = {}
-with io.open(CSV_PATH, "r", encoding="utf-8") as f:
-    for i, line in enumerate(f):
-        if i == 0:
-            header = line.strip().split(",")
-            continue
-        # 아주 단순 파서: CSV는 쉼표/따옴표 처리된 상태라고 가정
-        # 파이썬 csv 모듈 쓰는 게 더 안전하지만 예시는 생략
+
+# CSV 파일 확인
+if not os.path.exists(CSV_PATH):
+    print(f"오류: CSV 파일을 찾을 수 없습니다: {CSV_PATH}")
+    sys.exit(1)
+
 with io.open(CSV_PATH, "r", encoding="utf-8", newline="") as f:
     import csv as _csv
 
