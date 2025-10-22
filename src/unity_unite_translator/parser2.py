@@ -154,7 +154,7 @@ def main():
                     "idx": idx,
                     "indent": indent,
                     "source": src_out,
-                    "target": "",  # 번역 채울 자리
+                    "target": src_out,  # 번역 채울 자리
                 }
             )
 
