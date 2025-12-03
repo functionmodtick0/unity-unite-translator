@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-RPGMaker Unite 이벤트 에셋에서 문자열 추출 → CSV 생성
-출력 헤더: source,target
+RPGMaker Unite 이벤트 에셋에서 문자열 추출 → TXT 생성
 """
 
 import argparse, csv, io, os, re, sys
@@ -90,7 +89,7 @@ def main():
         default="ExportedProject/Assets/RPGMaker/Storage/Event/SO/Event",
         help="입력 폴더(또는 단일 .asset 파일)",
     )
-    ap.add_argument("-o", "--output", default="rpgm_texts.csv", help="출력 CSV 경로")
+    ap.add_argument("-o", "--output", default="source.txt", help="출력 TXT 경로")
     ap.add_argument(
         "--codes",
         default="401,402",
@@ -170,11 +169,9 @@ def main():
     rows.sort(key=lambda r: r["source"])
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    with io.open(out_path, "w", encoding="utf-8", newline="") as fp:
-        w = csv.writer(fp)
-        w.writerow(["source", "target"])
+    with io.open(out_path, "w", encoding="utf-8") as fp:
         for r in rows:
-            w.writerow([r["source"], r["target"]])
+            fp.write(r["source"] + "\n")
 
     print(f"[OK] extracted {len(rows)} lines → {out_path}")
 
