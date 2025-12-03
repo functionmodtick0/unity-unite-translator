@@ -1,17 +1,14 @@
-[tool.poetry]
-name = "unity-unite-translator"     # 배포명은 하이픈 가능
+[project]
+name = "unity-unite-translator"
 version = "0.1.0"
 description = ""
 readme = "README.md"
-packages = [{ include = "unity_unite_translator", from = "src" }]  # ← 핵심
+requires-python = ">=3.12"
+dependencies = [
+    "pyyaml>=6.0.3",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-pyyaml = "^6.0.3"
-
-[tool.poetry.group.dev.dependencies]
-black = "^24.0"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.uv]
+dev-dependencies = [
+    "black>=24.0",
+]
