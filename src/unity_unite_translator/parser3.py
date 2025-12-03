@@ -97,7 +97,7 @@ def main():
         help="추출할 event code들(쉼표 구분). 기본: 401,402",
     )
     ap.add_argument(
-        "--dedupe", action="store_true", help="같은 file+name+source 중복행 제거"
+        "--dedupe", action="store_true", help="중복된 source 텍스트 제거"
     )
     ap.add_argument(
         "--no-escape",
@@ -138,8 +138,8 @@ def main():
             src = normalize_newlines(txt)
             src_out = src if args.no_escape else escape_visible(src)
 
-            rel = str(f).replace("\\", "/")
-            key = (rel, name, src_out)
+            # 기준: 최종 csv 출력문에서 동일한 원문이 두 번 이상 등장해서는 안됨
+            key = src_out
             if args.dedupe and key in seen:
                 continue
             seen.add(key)
