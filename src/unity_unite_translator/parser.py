@@ -96,9 +96,6 @@ def main():
         help="추출할 event code들(쉼표 구분). 기본: 401,402",
     )
     ap.add_argument(
-        "--dedupe", action="store_true", help="중복된 source 텍스트 제거"
-    )
-    ap.add_argument(
         "--no-escape",
         action="store_true",
         help="개행/탭을 \\n/\\t로 바꾸지 않음(실제 개행 유지)",
@@ -165,7 +162,7 @@ def main():
 
             # 기준: 최종 csv 출력문에서 동일한 원문이 두 번 이상 등장해서는 안됨
             key = src_out
-            if args.dedupe and key in seen:
+            if key in seen:
                 continue
             seen.add(key)
 
