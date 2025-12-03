@@ -104,7 +104,27 @@ def main():
         action="store_true",
         help="개행/탭을 \\n/\\t로 바꾸지 않음(실제 개행 유지)",
     )
+    ap.add_argument(
+        "--gui", action="store_true", help="입력 폴더를 GUI 창으로 선택 (tkinter 필요)"
+    )
     args = ap.parse_args()
+
+    if args.gui:
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+
+            root = tk.Tk()
+            root.withdraw()  # 메인 윈도우 숨김
+            print("[INFO] 폴더 선택 창을 띄웁니다...")
+            selected = filedialog.askdirectory(title="입력 폴더 선택", initialdir=os.getcwd())
+            if selected:
+                args.input = selected
+                print(f"[INFO] 선택된 경로: {args.input}")
+            else:
+                print("[INFO] 폴더 선택이 취소되었습니다. 기존 설정을 사용합니다.")
+        except ImportError:
+            sys.stderr.write("[ERROR] tkinter 모듈이 없습니다. GUI 기능을 사용할 수 없습니다.\n")
 
     input_root = Path(args.input)
     out_path = Path(args.output)
