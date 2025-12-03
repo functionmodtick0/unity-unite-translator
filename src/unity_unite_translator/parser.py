@@ -26,7 +26,7 @@ def load_mono_yaml(text: str):
     body = text[idx:]
     try:
         data = yaml.safe_load(body)
-        # data = {'MonoBehaviour': {...}}
+        # data = {'MonoBehaviour': {...}}v
         return data.get("MonoBehaviour", None) if isinstance(data, dict) else None
     except Exception as e:
         return None
@@ -141,7 +141,13 @@ def main():
 
     rows = []
     seen = set()  # dedupe용 (file,name,source)
-    for f in files:
+    total_files = len(files)
+    prev_percent = 0
+    for i, f in enumerate(files, start=1):
+        current_percent = (i / total_files) * 100
+        if current_percent - prev_percent >= 1 or i == total_files:
+            print(f"[INFO] Processing {i}/{total_files} ({current_percent:.1f}%)")
+            prev_percent = current_percent
         try:
             with io.open(f, "r", encoding="utf-8") as fp:
                 text = fp.read()
