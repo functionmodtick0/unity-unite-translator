@@ -1,64 +1,180 @@
-# extract_rpgmaker_texts.py
-import csv, glob, io, os, re, sys
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+RPGMaker Unite 이벤트 에셋에서 문자열 추출 → TXT 생성
+"""
 
-# 상대 임포트와 절대 임포트 모두 지원
+import argparse, csv, io, os, re, sys
+from pathlib import Path
+
+# --- YAML 로더 준비 ---
 try:
-    from .translator import translate_batch
+    import yaml
 except ImportError:
-    # 직접 실행 시
-    from translator import translate_batch
+    sys.stderr.write("[ERROR] PyYAML 미설치. 설치: pip install pyyaml\n")
+    sys.exit(1)
 
-PROJECT_ROOT = "projects"
-PROJECT_NAME = input("프로젝트 이름을 입력하세요: ").strip()
-ROOT = r"ExportedProject/Assets/RPGMaker/Storage/Event/SO/Event"
-files = glob.glob(os.path.join(PROJECT_ROOT, PROJECT_NAME, ROOT, "*.asset"))
 
-pat_code = re.compile(r"^\s*-\s+code:\s+(\d+)\s*$", re.M)
-pat_params = re.compile(r'^\s*parameters:\s*\n\s*-\s+"(.*)"\s*\n\s*-\s*(\d+)\s*$', re.M)
+def load_mono_yaml(text: str):
+    """
+    Unity .asset YAML에서 'MonoBehaviour:' 이후만 파싱.
+    상단의 %YAML / %TAG / --- !u! 라인은 버린다.
+    """
+    idx = text.find("MonoBehaviour:")
+    if idx < 0:
+        return None
+    body = text[idx:]
+    try:
+        data = yaml.safe_load(body)
+        # data = {'MonoBehaviour': {...}}
+        return data.get("MonoBehaviour", None) if isinstance(data, dict) else None
+    except Exception as e:
+        return None
 
-rows = []
-for path in files:
-    with io.open(path, "r", encoding="utf-8") as f:
-        text = f.read()
-    # eventCommands 블록 단위 스캔
-    # 간단화: code 줄과 바로 이어지는 parameters 블록을 매칭
-    for m in re.finditer(
-        r"(?P<codeblock>^\s*-\s+code:\s+\d+[\s\S]*?)(?=^\s*-\s+code:|\Z)", text, re.M
-    ):
-        block = m.group("codeblock")
-        code_m = pat_code.search(block)
-        if not code_m:
+
+def normalize_newlines(s: str) -> str:
+    return s.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def escape_visible(s: str) -> str:
+    """편집 편의: 실제 개행/탭을 보이는 이스케이프로 바꿈"""
+    s = normalize_newlines(s)
+    s = s.replace("\\", "\\\\")  # 역슬래시 보존
+    s = s.replace("\t", "\\t")
+    s = s.replace("\n", "\\n")
+    return s
+
+
+def iter_event_texts(mono: dict, target_codes: set[int]):
+    """
+    dataModel.eventCommands[*]에서 code ∈ target_codes인 항목의
+    parameters 배열에 들어있는 **모든 문자열 요소**를 뽑는다.
+    """
+    if not isinstance(mono, dict):
+        return
+    name = mono.get("m_Name", "")
+    dm = mono.get("dataModel")
+    if not isinstance(dm, dict):
+        return
+    cmds = dm.get("eventCommands")
+    if not isinstance(cmds, list):
+        return
+    for idx, cmd in enumerate(cmds):
+        if not isinstance(cmd, dict):
             continue
-        code = int(code_m.group(1))
-        if code != 401:
+        code = cmd.get("code")
+        if code not in target_codes:
             continue
-        p = pat_params.search(block)
-        if not p:
+        indent = cmd.get("indent", "")
+        par = cmd.get("parameters")
+        if isinstance(par, list) and par:
+            for item in par:
+                if isinstance(item, str):
+                    yield idx, int(code), indent, item, name
+
+
+def collect_files(input_root: Path) -> list[Path]:
+    if input_root.is_file() and input_root.suffix.lower() == ".asset":
+        return [input_root]
+    # 기본적으로 Unite 샘플 경로 패턴에 맞춤
+    candidates = list(input_root.rglob("*.asset"))
+    return candidates
+
+
+def main():
+    ap = argparse.ArgumentParser(description="RPGMaker Unite 이벤트 텍스트 추출기")
+    ap.add_argument(
+        "-i",
+        "--input",
+        default="ExportedProject/Assets/RPGMaker/Storage/Event/SO/Event",
+        help="입력 폴더(또는 단일 .asset 파일)",
+    )
+    ap.add_argument("-o", "--output", default="source.txt", help="출력 TXT 경로")
+    ap.add_argument(
+        "--codes",
+        default="401,402",
+        help="추출할 event code들(쉼표 구분). 기본: 401,402",
+    )
+    ap.add_argument(
+        "--dedupe", action="store_true", help="중복된 source 텍스트 제거"
+    )
+    ap.add_argument(
+        "--no-escape",
+        action="store_true",
+        help="개행/탭을 \\n/\\t로 바꾸지 않음(실제 개행 유지)",
+    )
+    ap.add_argument(
+        "--gui", action="store_true", help="입력 폴더를 GUI 창으로 선택 (tkinter 필요)"
+    )
+    args = ap.parse_args()
+
+    if args.gui:
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+
+            root = tk.Tk()
+            root.withdraw()  # 메인 윈도우 숨김
+            print("[INFO] 폴더 선택 창을 띄웁니다...")
+            selected = filedialog.askdirectory(title="입력 폴더 선택", initialdir=os.getcwd())
+            if selected:
+                args.input = selected
+                print(f"[INFO] 선택된 경로: {args.input}")
+            else:
+                print("[INFO] 폴더 선택이 취소되었습니다. 기존 설정을 사용합니다.")
+        except ImportError:
+            sys.stderr.write("[ERROR] tkinter 모듈이 없습니다. GUI 기능을 사용할 수 없습니다.\n")
+
+    input_root = Path(args.input)
+    out_path = Path(args.output)
+    target_codes = set()
+    for tok in args.codes.split(","):
+        tok = tok.strip()
+        if tok.isdigit():
+            target_codes.add(int(tok))
+    if not target_codes:
+        target_codes = {401, 402}
+
+    files = collect_files(input_root)
+    if not files:
+        sys.stderr.write(f"[WARN] 입력에서 .asset 파일을 찾지 못함: {input_root}\n")
+
+    rows = []
+    seen = set()  # dedupe용 (file,name,source)
+    for f in files:
+        try:
+            with io.open(f, "r", encoding="utf-8") as fp:
+                text = fp.read()
+        except UnicodeDecodeError:
+            # 일부 파일이 바이너리일 수 있음 → 스킵
             continue
-        jp = p.group(1)  # 원문
-        # YAML 내부 \n 이스케이프는 그대로 둔다
-        rows.append([path, jp, ""])  # target은 나중에 채움
 
-# 번역 적용 여부 선택
-auto_translate = input("자동 번역을 적용하시겠습니까? (y/n): ").strip().lower() == 'y'
+        mono = load_mono_yaml(text)
+        if not mono:
+            continue
 
-if auto_translate:
-    print(f"\n{len(rows)}개의 텍스트 번역 시작...")
-    source_texts = [row[1] for row in rows]
-    translated_texts = translate_batch(source_texts)
-    
-    # 번역 결과를 rows에 적용
-    for i, translated in enumerate(translated_texts):
-        rows[i][2] = translated
-    print("번역 완료!\n")
-else:
-    # 번역하지 않으면 target을 source와 동일하게
-    for row in rows:
-        row[2] = row[1]
+        for idx, code, indent, txt, name in iter_event_texts(mono, target_codes):
+            src = normalize_newlines(txt)
+            src_out = src if args.no_escape else escape_visible(src)
 
-output_path = os.path.join(PROJECT_ROOT, PROJECT_NAME, "rpgm_texts.csv")
-with io.open(output_path, "w", encoding="utf-8", newline="") as out:
-    w = csv.writer(out)
-    w.writerow(["file", "source", "target"])
-    w.writerows(rows)
-print(f"extracted {len(rows)} lines -> {output_path}")
+            # 기준: 최종 csv 출력문에서 동일한 원문이 두 번 이상 등장해서는 안됨
+            key = src_out
+            if args.dedupe and key in seen:
+                continue
+            seen.add(key)
+
+            rows.append({"source": src_out, "target": src_out})  # dnSpy용 매핑
+
+    # 정렬(문자열 기준)
+    rows.sort(key=lambda r: r["source"])
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with io.open(out_path, "w", encoding="utf-8") as fp:
+        for r in rows:
+            fp.write(r["source"] + "\n")
+
+    print(f"[OK] extracted {len(rows)} lines → {out_path}")
+
+
+if __name__ == "__main__":
+    main()
