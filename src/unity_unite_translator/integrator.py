@@ -13,8 +13,8 @@ from pathlib import Path
 
 def main():
     ap = argparse.ArgumentParser(description="RPGMaker Unite 텍스트 병합기 (TXT + TXT -> CSV)")
-    ap.add_argument("original", help="원문 텍스트 파일 경로", default="source.txt")
-    ap.add_argument("translated", help="번역문 텍스트 파일 경로", default="translated.txt")
+    ap.add_argument("original", help="원문 텍스트 파일 경로")
+    ap.add_argument("translated", help="번역문 텍스트 파일 경로")
     ap.add_argument("-o", "--output", default="rpgm_texts-translated.csv", help="출력 CSV 경로")
     
     args = ap.parse_args()
